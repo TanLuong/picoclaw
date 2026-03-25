@@ -891,9 +891,11 @@ func (c *ModelConfig) UnmarshalJSON(data []byte) error {
 
 	if aux.APIKey != "" {
 		c.apiKeys = append(c.apiKeys, aux.APIKey)
+		c.secDirty = true
 	}
 	if len(aux.APIKeys) > 0 {
 		c.apiKeys = append(c.apiKeys, aux.APIKeys...)
+		c.secDirty = true
 	}
 	return nil
 }
