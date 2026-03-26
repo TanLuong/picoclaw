@@ -176,6 +176,9 @@ func buildRequestBody(
 	var systemPrompt string
 	var apiMessages []any
 
+	// Helper to track valid tool calls to prevent orphaned tool results
+	validToolCalls := make(map[string]bool)
+
 	for _, msg := range messages {
 		switch msg.Role {
 		case "system":
@@ -188,6 +191,10 @@ func buildRequestBody(
 
 		case "user":
 			if msg.ToolCallID != "" {
+				// Skip orphaned tool results
+				if !validToolCalls[msg.ToolCallID] {
+					continue
+				}
 				// Tool result message — merge into previous user message if it contains tool_results
 				toolResultBlock := map[string]any{
 					"type":        "tool_result",
@@ -244,6 +251,7 @@ func buildRequestBody(
 					"input": input,
 				}
 				content = append(content, toolUse)
+				validToolCalls[tc.ID] = true
 			}
 
 			apiMessages = append(apiMessages, map[string]any{
@@ -252,6 +260,10 @@ func buildRequestBody(
 			})
 
 		case "tool":
+			// Skip orphaned tool results
+			if !validToolCalls[msg.ToolCallID] {
+				continue
+			}
 			// Tool result (alternative format) — merge into previous user message if it contains tool_results
 			toolResultBlock := map[string]any{
 				"type":        "tool_result",
