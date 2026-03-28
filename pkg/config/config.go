@@ -887,6 +887,50 @@ type ModelConfig struct {
 	isVirtual bool
 }
 
+func (c *ModelConfig) UnmarshalJSON(data []byte) error {
+	type Alias ModelConfig
+	aux := &struct {
+		APIKey  string   `json:"api_key"`
+		APIKeys []string `json:"api_keys"`
+		*Alias
+	}{
+		Alias: (*Alias)(c),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	// Ensure we preserve existing apiKeys if UnmarshalJSON is called multiple times,
+	// though typically it is not.
+
+	if aux.APIKey != "" {
+		c.apiKeys = append(c.apiKeys, aux.APIKey)
+		c.secDirty = true
+	}
+	if len(aux.APIKeys) > 0 {
+		c.apiKeys = append(c.apiKeys, aux.APIKeys...)
+		c.secDirty = true
+	}
+	return nil
+}
+
+func (c ModelConfig) MarshalJSON() ([]byte, error) {
+	type Alias ModelConfig
+	aux := &struct {
+		APIKey  string   `json:"api_key,omitempty"`
+		APIKeys []string `json:"api_keys,omitempty"`
+		Alias
+	}{
+		Alias: (Alias)(c),
+	}
+	if len(c.apiKeys) == 1 {
+		aux.APIKey = c.apiKeys[0]
+	} else if len(c.apiKeys) > 1 {
+		aux.APIKeys = c.apiKeys
+	}
+	return json.Marshal(aux)
+}
+
 // APIKey returns the first API key from apiKeys
 func (c *ModelConfig) APIKey() string {
 	if len(c.apiKeys) > 0 {
