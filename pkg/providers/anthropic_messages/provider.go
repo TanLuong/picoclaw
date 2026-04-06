@@ -206,6 +206,12 @@ func buildRequestBody(
 						if content, ok := prev["content"].([]map[string]any); ok {
 							prev["content"] = append(content, toolResultBlock)
 							continue
+						} else if contentStr, ok := prev["content"].(string); ok {
+							prev["content"] = []map[string]any{
+								{"type": "text", "text": contentStr},
+								toolResultBlock,
+							}
+							continue
 						}
 					}
 				}
@@ -278,6 +284,12 @@ func buildRequestBody(
 					prev["role"] == "user" {
 					if content, ok := prev["content"].([]map[string]any); ok {
 						prev["content"] = append(content, toolResultBlock)
+						continue
+					} else if contentStr, ok := prev["content"].(string); ok {
+						prev["content"] = []map[string]any{
+							{"type": "text", "text": contentStr},
+							toolResultBlock,
+						}
 						continue
 					}
 				}

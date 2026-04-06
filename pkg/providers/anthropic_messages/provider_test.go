@@ -648,6 +648,50 @@ func TestBuildRequestBody_ConsecutiveToolResultsMerged(t *testing.T) {
 	}
 }
 
+func TestBuildRequestBody_ToolResultsMergedIntoText(t *testing.T) {
+	// A tool result merging into a previous user message containing text
+	messages := []Message{
+		{Role: "user", Content: "First user message"},
+		{Role: "assistant", Content: "", ToolCalls: []ToolCall{
+			{ID: "t1", Name: "tool_a", Arguments: map[string]any{"x": 1}},
+		}},
+		{Role: "user", Content: "Wait wait wait"},
+		{Role: "tool", ToolCallID: "t1", Content: "result1"},
+	}
+
+	got, err := buildRequestBody(messages, nil, "test-model", map[string]any{"max_tokens": 8192})
+	if err != nil {
+		t.Fatalf("buildRequestBody() error: %v", err)
+	}
+
+	apiMessages, ok := got["messages"].([]any)
+	if !ok {
+		t.Fatalf("messages is not []any")
+	}
+
+	// Expect: user, assistant, user (merged text + tool result)
+	if len(apiMessages) != 3 {
+		t.Fatalf("expected 3 API messages, got %d", len(apiMessages))
+	}
+
+	toolResultMsg := apiMessages[2].(map[string]any)
+	content, ok := toolResultMsg["content"].([]map[string]any)
+	if !ok {
+		t.Fatalf("content is not []map[string]any: %T", toolResultMsg["content"])
+	}
+	if len(content) != 2 {
+		t.Fatalf("expected 2 content blocks, got %d", len(content))
+	}
+
+	if content[0]["type"] != "text" || content[0]["text"] != "Wait wait wait" {
+		t.Errorf("first block is not correct text block, got: %v", content[0])
+	}
+
+	if content[1]["type"] != "tool_result" || content[1]["tool_use_id"] != "t1" {
+		t.Errorf("second block is not correct tool_result block, got: %v", content[1])
+	}
+}
+
 func TestBuildRequestBody_UserToolResultsMerged(t *testing.T) {
 	// Consecutive tool results using role "user" with ToolCallID should also be merged
 	messages := []Message{
